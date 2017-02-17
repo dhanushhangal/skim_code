@@ -29,6 +29,28 @@ int dataset_pthats[e_n_dataset_types+1] = {0,0,15,30,50,80,120,170,220,280,370,1
 
 int dataset_type_code = -999;
 
+void ReadFileList(std::vector<TString> &my_file_names, TString file_of_names, bool debug)
+{
+  ifstream file_stream(file_of_names);
+  std::string line;
+  my_file_names.clear();
+  if( debug ) std::cout << "Open file " << file_of_names << " to extract files to run over" << std::endl;
+  if( file_stream.is_open() ) {
+    if( debug ) std::cout << "Opened " << file_of_names << " for reading" << std::endl;
+    int line_num = 0;
+    while( !file_stream.eof() ) {
+      getline(file_stream, line);
+      //if( debug ) std::cout << line_num << ": " << line << std::endl;
+      TString tstring_line(line);
+      if( tstring_line.CompareTo("", TString::kExact) != 0 ) my_file_names.push_back(tstring_line);
+      line_num++;
+    }
+  } else {
+    std::cout << "Error, could not open " << file_of_names << " for reading" << std::endl;
+    assert(0);
+  }
+}
+
 //arg 1 = which data set, arg 2 = output file number
 void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_code = 0, int output_file_num = 1)
 {
@@ -184,7 +206,6 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 	mixing_tree->Branch("nCSpartGT2_id1",&nCSpart_perJet2_id1);
 	mixing_tree->Branch("nCSpartGT3_id1",&nCSpart_perJet3_id1);
 	
-	//adding b-jet stuff....
 	if(!is_data){
 		mixing_tree->Branch("calo_refparton_flavor",&calo_parton_flavor);
 	}
@@ -209,28 +230,21 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 
 	Int_t calo_nref;
 
-	while(instr>>filename && ifile<endfile){
-		filename.erase(std::remove(filename.begin(), filename.end(), '"'), filename.end());
-		filename.erase(std::remove(filename.begin(), filename.end(), ','), filename.end());
-		filename.erase(std::remove(filename.begin(), filename.end(), '['), filename.end());
-		filename.erase(std::remove(filename.begin(), filename.end(), ']'), filename.end());
-		cout<<"File name is "<< filename <<endl;
-		ifile++;
 
-		TFile *my_file = TFile::Open(filename.c_str());
-		if(!my_file){
-			int pos = filename.find_first_of('s');
-			string reducedfn = filename.substr(pos-1);
-			string xrdPrefix = "root://cmsxrootd.fnal.gov/";
-			cout << "local file not detected. Trying " << xrdPrefix+reducedfn << endl;
-			TFile::Open((xrdPrefix+reducedfn).c_str());
-		}
-		
-		if(!my_file){ cout << "File cannot be found!!" << endl; exit(1); }	
+    std::vector<TString> file_names;   file_names.clear();
 
-		if(my_file->IsZombie()) { 
-			std::cout << "Is zombie" << std::endl;
-		}    
+    ReadFileList( file_names, in_file_name, true);
+
+    cout<<"got file"<<endl;
+
+    for(int fi = 0; fi < (int) file_names.size(); fi++) {
+    //for(int fi = 0; fi < 10; fi++) {
+    
+      TFile *my_file = TFile::Open(file_names.at(fi));
+      //std::cout << "Current file: " << ", file_name: " << file_names.at(fi) << ", number " << fi << " of " << file_names.size() << std::endl;
+      if(my_file->IsZombie()) {
+        std::cout << "Is zombie" << std::endl;
+      }
 
 		if(do_PbPb){
 			inp_tree = (TTree*)  my_file->Get(Form("akPu%dCaloJetAnalyzer/t",radius));
