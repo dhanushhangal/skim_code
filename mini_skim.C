@@ -97,8 +97,8 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 	string in_file_name;
 
 	if(doCrab){
-		//in_file_name = Form("job_input_file_list_%d.txt",jobID);
-		in_file_name = "Pythia6+Hydjet.txt";
+		in_file_name = Form("job_input_file_list_%d.txt",jobID);
+		//in_file_name = "Pythia6+Hydjet.txt";
 	}
 	else if(is_data&&!do_PbPb){
 		in_file_name = "pp5TeV_HighPtPD_Apr2016.txt";
@@ -235,17 +235,17 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 
     ReadFileList( file_names, in_file_name, true);
 
-    cout<<"got file"<<endl;
+    
 
     for(int fi = 0; fi < (int) file_names.size(); fi++) {
     //for(int fi = 0; fi < 10; fi++) {
     
       TFile *my_file = TFile::Open(file_names.at(fi));
       //std::cout << "Current file: " << ", file_name: " << file_names.at(fi) << ", number " << fi << " of " << file_names.size() << std::endl;
-      if(my_file->IsZombie()) {
-        std::cout << "Is zombie" << std::endl;
-      }
-
+      //if(my_file->IsZombie()) {
+      //  std::cout << "Is zombie" << std::endl;
+      //}
+    cout<<"got file"<<endl;  
 		if(do_PbPb){
 			inp_tree = (TTree*)  my_file->Get(Form("akPu%dCaloJetAnalyzer/t",radius));
 			inp_tree_CS = (TTree*) my_file->Get("pfcandAnalyzerCS/pfTree");
