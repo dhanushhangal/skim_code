@@ -29,28 +29,6 @@ int dataset_pthats[e_n_dataset_types+1] = {0,0,15,30,50,80,120,170,220,280,370,1
 
 int dataset_type_code = -999;
 
-void ReadFileList(std::vector<TString> &my_file_names, TString file_of_names, bool debug)
-{
-  ifstream file_stream(file_of_names);
-  std::string line;
-  my_file_names.clear();
-  if( debug ) std::cout << "Open file " << file_of_names << " to extract files to run over" << std::endl;
-  if( file_stream.is_open() ) {
-    if( debug ) std::cout << "Opened " << file_of_names << " for reading" << std::endl;
-    int line_num = 0;
-    while( !file_stream.eof() ) {
-      getline(file_stream, line);
-      //if( debug ) std::cout << line_num << ": " << line << std::endl;
-      TString tstring_line(line);
-      if( tstring_line.CompareTo("", TString::kExact) != 0 ) my_file_names.push_back(tstring_line);
-      line_num++;
-    }
-  } else {
-    std::cout << "Error, could not open " << file_of_names << " for reading" << std::endl;
-    assert(0);
-  }
-}
-
 //arg 1 = which data set, arg 2 = output file number
 void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_code = 0, int output_file_num = 1)
 {
@@ -146,7 +124,7 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 	Float_t pthat = -999;
 	Float_t vz = -999;//, sumpt[15];
 	Int_t nPFpart, nCSpart;
-	vector<int> nCSpart_perJet, nCSpart_perJet0p5, nCSpart_perJet1, nCSpart_perJet2, nCSpart_perJet3, nCSpart_perJet0p5_id1, nCSpart_perJet1_id1, nCSpart_perJet2_id1, nCSpart_perJet3_id1;
+	vector<int> nCSpart_perJet, nCSpart_perJet0p5, nCSpart_perJet1, nCSpart_perJet2, nCSpart_perJet3, nCSpart_perJet4, nCSpart_perJet0p5_id1, nCSpart_perJet1_id1, nCSpart_perJet2_id1, nCSpart_perJet3_id1, nCSpart_perJet4_id1;
 	vector<float> calo_discr_ssvHighEff, calo_discr_ssvHighPur, calo_discr_csvV1, calo_discr_prob, calo_svtxm, calo_svtxpt, calo_svtxmcorr, calo_svtxdl, calo_svtxdls;
 
 	/// higenparticles
@@ -201,20 +179,21 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 	mixing_tree->Branch("nCSpartGT1",&nCSpart_perJet1);
 	mixing_tree->Branch("nCSpartGT2",&nCSpart_perJet2);
 	mixing_tree->Branch("nCSpartGT3",&nCSpart_perJet3);
+	mixing_tree->Branch("nCSpartGT4",&nCSpart_perJet4);
 	mixing_tree->Branch("nCSpartGT0p5_id1",&nCSpart_perJet0p5_id1);
 	mixing_tree->Branch("nCSpartGT1_id1",&nCSpart_perJet1_id1);
 	mixing_tree->Branch("nCSpartGT2_id1",&nCSpart_perJet2_id1);
 	mixing_tree->Branch("nCSpartGT3_id1",&nCSpart_perJet3_id1);
+	mixing_tree->Branch("nCSpartGT4_id1",&nCSpart_perJet4_id1);
 	
 	if(!is_data){
 		mixing_tree->Branch("calo_refparton_flavor",&calo_parton_flavor);
 	}
 
-
-	std::ifstream instr(in_file_name.c_str(), std::ifstream::in);
+    std::ifstream instr(in_file_name.c_str(), std::ifstream::in);
 	if(!instr.is_open()) cout << "filelist not found!! Exiting..." << endl;
 	std::string filename;
-	int ifile=0;
+	int ifile=0; 
 
 	const int MAXJETS = 500;
 	Float_t t_calo_jtpt[MAXJETS], t_calo_jteta[MAXJETS], t_calo_jtphi[MAXJETS], t_calo_discr_ssvHighEff[MAXJETS], t_calo_discr_ssvHighPur[MAXJETS], t_calo_discr_csvV1[MAXJETS], t_calo_discr_prob[MAXJETS], t_calo_svtxm[MAXJETS], t_calo_svtxpt[MAXJETS], t_calo_svtxmcorr[MAXJETS], t_calo_svtxdl[MAXJETS], t_calo_svtxdls[MAXJETS];
@@ -230,22 +209,24 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 
 	Int_t calo_nref;
 
+    while(instr>>filename && ifile<endfile){
+		filename.erase(std::remove(filename.begin(), filename.end(), '"'), filename.end());
+		filename.erase(std::remove(filename.begin(), filename.end(), ','), filename.end());
+		filename.erase(std::remove(filename.begin(), filename.end(), '['), filename.end());
+		filename.erase(std::remove(filename.begin(), filename.end(), ']'), filename.end());
+		cout<<"File name is "<< filename <<endl;
+		ifile++;
 
-    std::vector<TString> file_names;   file_names.clear();
+		TFile *my_file = TFile::Open(filename.c_str());
+		if(!my_file){
+			int pos = filename.find_first_of('s');
+			string reducedfn = filename.substr(pos-1);
+			string xrdPrefix = "root://cmsxrootd.fnal.gov/";
+			cout << "local file not detected. Trying " << xrdPrefix+reducedfn << endl;
+			TFile::Open((xrdPrefix+reducedfn).c_str());
+		}
 
-    ReadFileList( file_names, in_file_name, true);
-
-    
-
-    for(int fi = 0; fi < (int) file_names.size(); fi++) {
-    //for(int fi = 0; fi < 10; fi++) {
-    
-      TFile *my_file = TFile::Open(file_names.at(fi));
-      //std::cout << "Current file: " << ", file_name: " << file_names.at(fi) << ", number " << fi << " of " << file_names.size() << std::endl;
-      //if(my_file->IsZombie()) {
-      //  std::cout << "Is zombie" << std::endl;
-      //}
-    cout<<"got file"<<endl;  
+		//TFile *my_file = TFile::Open("root://eoscms.cern.ch//eos/cms/store/group/cmst3/group/hintt/mverweij/CS/data/HIHardProbes/crab_HIHardProbesPrescale_CSv1_v2/160711_200823/0000/HiForestAOD_1.root");
 		if(do_PbPb){
 			inp_tree = (TTree*)  my_file->Get(Form("akPu%dCaloJetAnalyzer/t",radius));
 			inp_tree_CS = (TTree*) my_file->Get("pfcandAnalyzerCS/pfTree");
@@ -279,13 +260,13 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 		inp_tree6 = (TTree*) my_file->Get("hltanalysis/HltTree");
 		if(is_data && !inp_tree6){ cout << "HLT Tree not found!! Exiting..." << endl; exit(1); }
 		else inp_tree->AddFriend(inp_tree6);
-
+/*
 		if(!is_data){ 
 			inp_tree7 = (TTree*) my_file->Get("HiGenParticleAna/hi");
 			if(!inp_tree7){ cout << "GenPart Tree not found!! Exiting..." << endl; exit(1); }
 			else inp_tree->AddFriend(inp_tree7);
 		}
-
+*/
 		cout << "trees loaded" << endl;
 
 		inp_tree->SetBranchAddress("highPurity",t_highPurity);
@@ -394,8 +375,8 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 				reco_phi = t_calo_jtphi[j4i];
 				reco_eta = t_calo_jteta[j4i];
 
-				int ncs=0, ncs0p5=0, ncs1=0, ncs2=0, ncs3=0;
-				int ncs0p5_id1=0, ncs1_id1=0, ncs2_id1=0, ncs3_id1=0;
+				int ncs=0, ncs0p5=0, ncs1=0, ncs2=0, ncs3=0, ncs4=0;
+				int ncs0p5_id1=0, ncs1_id1=0, ncs2_id1=0, ncs3_id1=0, ncs4_id1=0;
 				if(do_PbPb){
 					for(int icand=0; icand<nCSpart; icand++){
 						if(abs(csCandEta->at(icand))>2.4) continue;
@@ -406,10 +387,12 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 							if(csCandPt->at(icand)>1) ncs1++;
 							if(csCandPt->at(icand)>2) ncs2++;
 							if(csCandPt->at(icand)>3) ncs3++;
+							if(csCandPt->at(icand)>4) ncs4++;
 							if(csCandPt->at(icand)>0.5 && csCandId->at(icand)==1) ncs0p5_id1++;
 							if(csCandPt->at(icand)>1 && csCandId->at(icand)==1) ncs1_id1++;
 							if(csCandPt->at(icand)>2 && csCandId->at(icand)==1) ncs2_id1++;
 							if(csCandPt->at(icand)>3 && csCandId->at(icand)==1) ncs3_id1++;
+							if(csCandPt->at(icand)>4 && csCandId->at(icand)==1) ncs4_id1++;
 						}
 					}
 					nCSpart_perJet.push_back(ncs);
@@ -417,10 +400,12 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 					nCSpart_perJet1.push_back(ncs1);
 					nCSpart_perJet2.push_back(ncs2);
 					nCSpart_perJet3.push_back(ncs3);
+					nCSpart_perJet4.push_back(ncs4);
 					nCSpart_perJet0p5_id1.push_back(ncs0p5_id1);
 					nCSpart_perJet1_id1.push_back(ncs1_id1);
 					nCSpart_perJet2_id1.push_back(ncs2_id1);
 					nCSpart_perJet3_id1.push_back(ncs3_id1);
+					nCSpart_perJet4_id1.push_back(ncs4_id1);
 				}				
 		
 				if( t_calo_jtpt[j4i] < 25) continue;
@@ -457,10 +442,12 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 			nCSpart_perJet1.clear();
 			nCSpart_perJet2.clear();
 			nCSpart_perJet3.clear();
+			nCSpart_perJet4.clear();
 			nCSpart_perJet0p5_id1.clear();
 			nCSpart_perJet1_id1.clear();
 			nCSpart_perJet2_id1.clear();
 			nCSpart_perJet3_id1.clear();
+			nCSpart_perJet4_id1.clear();
 	
 			calo_jteta.clear();
 			calo_jtphi.clear();
@@ -484,7 +471,7 @@ void mini_skim(bool doCrab=1, int jobID=0, int endfile = 1, int dataset_type_cod
 		}  ///event loop
 
 		my_file->Close();
-	}
+	//}
 
 
 	cout<<"writing"<<endl;
